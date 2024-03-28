@@ -1,0 +1,6 @@
+.cache
+build
+**/node_modules/**
+src/index.js
+src/admin/webpack.config.example.js
+src/admin/app.example.js

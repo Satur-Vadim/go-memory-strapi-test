@@ -1,0 +1,35 @@
+# docker-compose.yml
+version: "3.8"
+
+networks:
+  go_memory:
+    name: go_memory_net
+    driver: bridge
+
+services:
+  go_memory_db:
+    container_name: go_memory_db
+    image: mysql:latest
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - 127.0.0.1:33065:3306
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+    environment:
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_DATABASE=${MYSQL_DB_NAME}
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+    restart: unless-stopped
+    networks:
+      - go_memory
+  go_memory_phpmyadmin:
+    container_name: go_memory_phpmyadmin
+    image: phpmyadmin:latest
+    restart: always
+    ports:
+      - 8885:80
+    environment:
+      - PMA_ARBITRARY
+    networks:
+      - go_memory

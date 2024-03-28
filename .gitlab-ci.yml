@@ -1,0 +1,83 @@
+stages:
+  - lint
+  - sonar
+  - build
+  - deploy
+
+variables:
+  CI_GITLAB_API_TOKEN: $CI_GITLAB_API_TOKEN
+  DOCKER_REPOSITORY_IMAGE: $DOCKER_REPOSITORY_IMAGE
+
+lint:
+  stage: lint
+  only:
+    - main
+    - develop
+    - merge_requests
+  image: $BUILD_DOCKER_IMAGE
+  script:
+    - docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} ${CI_REGISTRY}
+    - docker build --network=host -t react-${CI_COMMIT_SHA}:latest -f DockerfileCI .
+    - docker run --rm --name react-${CI_COMMIT_SHA} react-${CI_COMMIT_SHA}:latest npm run lint
+
+sonarqube-check:
+  stage: sonar
+  tags:
+    - kuber
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - sonar-scanner
+  allow_failure: true
+  only:
+    - main
+    - merge_requests
+
+sonarqube-pr-decoration:
+  stage: sonar
+  script:
+    - echo sonar.pullrequest.key=$CI_MERGE_REQUEST_IID >> sonar-project.properties
+    - echo sonar.pullrequest.branch=$CI_MERGE_REQUEST_BRANCH_NAME >> sonar-project.properties
+  only:
+    - main
+    - merge_requests
+  tags:
+    - kuber
+
+build:
+  stage: build
+  image: $BUILD_DOCKER_IMAGE
+  only:
+    - main
+  script:
+    - docker login -u gitlab-ci-token -p ${CI_BUILD_TOKEN} ${CI_REGISTRY}
+    - >
+      docker build
+      --build-arg HOST=$HOST
+      --build-arg PORT=$PORT
+      --build-arg APP_KEYS=$APP_KEYS
+      --build-arg API_TOKEN_SALT=$API_TOKEN_SALT
+      --build-arg MYSQL_DB_NAME=MYSQL_DB_NAME
+      --build-arg MYSQL_PASSWORD=$MYSQL_PASSWORD
+      --build-arg MYSQL_USER=$MYSQL_USER
+      --build-arg STRAPI_ADMIN_JWT_SECRET=STRAPI_ADMIN_JWT_SECRET
+      --build-arg MYSQL_HOSTNAME=$MYSQL_HOSTNAME
+      --build-arg MYSQL_PORT=$MYSQL_PORT
+      --network=host -t ${DOCKER_REPOSITORY_IMAGE} .
+    - docker push ${DOCKER_REPOSITORY_IMAGE}
+
+deploy:
+  stage: deploy
+  image: $DEPLOY_DOCKER_IMAGE
+  only:
+    - main
+  script:
+    - grdp-ctl

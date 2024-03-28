@@ -1,0 +1,44 @@
+# pull official base image
+FROM node:20.11.0
+
+ENV PORT 3000
+
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+
+ARG HOST
+ARG PORT
+ARG APP_KEYS
+ARG API_TOKEN_SALT
+ARG MYSQL_DB_NAME
+ARG MYSQL_PASSWORD
+ARG MYSQL_USER
+ARG ADMIN_JWT_SECRET
+ARG MYSQL_HOSTNAME
+ARG MYSQL_PORT
+
+# add `/app/node_modules/.bin` to $PATH
+ENV PATH /app/node_modules/.bin:$PATH
+ENV HOST $HOST
+ENV PORT $PORT
+ENV APP_KEYS $APP_KEYS
+ENV API_TOKEN_SALT $API_TOKEN_SALT
+ENV MYSQL_DB_NAME $MYSQL_DB_NAME
+ENV MYSQL_PASSWORD $MYSQL_PASSWORD
+ENV MYSQL_USER $MYSQL_USER
+ENV ADMIN_JWT_SECRET $ADMIN_JWT_SECRET
+ENV MYSQL_HOSTNAME $MYSQL_HOSTNAME
+ENV MYSQL_PORT $MYSQL_PORT
+# install app dependencies
+COPY package*.json /usr/src/app/
+RUN npm install
+
+# add app
+COPY . /usr/src/app
+
+RUN npm run build
+
+EXPOSE 3000
+
+# start app
+CMD ["npm", "start"]
